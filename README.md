@@ -8,6 +8,18 @@ This bundle is the **Claude-native distribution** of the project. It's self-cont
 
 ---
 
+> ### ⚠️ Read this before your first run
+>
+> **1. This spends money.** mhng-repo-mind drives Claude Opus across every file in your target repo. A ~500-file repo typically costs **$30–80**; a ~5000-file monorepo can run **hundreds**. Always run `mhng-repo-mind init --estimate` before a full run.
+>
+> **2. The output is sensitive** — a forensic attack-surface map of your codebase. Keep it in a **separate private directory or repo**, never inside the target.
+>
+> **3. Compliance reports are not legal advice.** The taxonomy cites HIPAA / SOC 2 / ISO 27001 / GDPR / CCPA / CMIA / California controls, but every report is a *starting checklist for a human reviewer*, not an audit deliverable.
+>
+> **4. Most of the ~40-command CLI is still experimental.** See the battle-tested table in the [main repo README](https://github.com/milehighnomadgrouptech/mhng-repo-mind#whats-battle-tested).
+
+---
+
 ## What you get
 
 After installing the skill, Claude can:
