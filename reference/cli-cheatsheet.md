@@ -7,6 +7,32 @@
 | `mhng-repo-mind version` | Print CLI version |
 | `mhng-repo-mind help` | Print help |
 
+## One-shot (LLM, unattended)
+| Command | Purpose |
+|---|---|
+| `mhng-repo-mind auto` | Run the full pipeline against `./docs.config.json` end-to-end |
+| `mhng-repo-mind auto ../some-repo` | Bootstrap config in target if missing, then run the pipeline |
+| `mhng-repo-mind auto --skip-audit` | Skip the slow LLM audit pass |
+| `mhng-repo-mind auto --skip-process` | Skip process discover + generate |
+| `mhng-repo-mind auto --output ./mydocs` | Override output_dir on bootstrap |
+
+**Pipeline order:** `doctor → init → manifest → validate → symbols → glossary → entry-points → dead-code → graph → intents → compliance → coverage → sources → overview → contracts → audit → process --discover → process`. `doctor`, `init`, `manifest` are critical; everything after is best-effort.
+
+**Recommended Claude Code prompt** (paste into a Claude Code session in the target repo):
+
+```
+Run `mhng-repo-mind auto` against this repo end-to-end and don't ask me
+questions. If docs.config.json doesn't exist, let `auto` bootstrap one.
+Use the default pipeline. When it finishes, give me the run summary plus
+a one-paragraph review of what's in <output_dir>/OVERVIEW.md.
+```
+
+**Recommended settings:**
+- Model: `claude-opus-4-6` (forensic analyses + audit benefit from Opus reasoning)
+- Permission mode: pre-approved allowlist via `.claude/settings.json`; only use `--dangerously-skip-permissions` in CI / sandboxed containers
+- `REPO_MIND_LOG_LEVEL=info` so you can see which step is running
+- Run `mhng-repo-mind init --estimate` first to see token/cost scope before committing to a full run
+
 ## Bootstrap & sync (LLM)
 | Command | Purpose |
 |---|---|
