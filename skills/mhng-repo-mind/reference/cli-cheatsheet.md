@@ -20,7 +20,9 @@
 
 **Default flow:** `auto` now runs `init --estimate` first to show the cost, then prompts `Continue with the full pipeline against this estimate? [y/N]` (defaults to NO). Pass `--yes` to silence the prompt. When stdin isn't a TTY (CI, background scripts) it proceeds with a warning instead of prompting.
 
-**Pipeline order:** `doctor → init --estimate → (prompt) → init → manifest → validate → symbols → glossary → entry-points → dead-code → graph → intents → compliance → coverage → sources → overview → contracts → audit → process --discover → process`. `doctor`, `init`, `manifest` are critical; everything after is best-effort.
+**Pipeline order:** `doctor → init --estimate → (prompt) → init → manifest → validate → symbols → glossary → entry-points → dead-code → graph → intents → compliance → coverage → sources → overview → contracts → audit → process --discover → process`. `doctor`, `init`, `manifest`, and `validate` are critical — a **non-zero exit code** on any of them aborts the pipeline. Everything after is best-effort.
+
+**Metric probes vs exit codes.** Each step also has an optional metric probe (e.g. "how many per-file analyses ended up on disk?"). A metric mismatch does **not** abort — `auto` logs a loud `⚠` and continues to downstream deterministic steps. The probe is a sanity check, not a contract; a false negative must not cost the user a second token bill. The summary table uses `✓` (exit 0, metric OK), `⚠` (exit 0, metric off), `✗` (non-zero exit), and `∅ — skipped (flag)` for anything removed by `--skip-audit` / `--skip-process`. If `init` exits 0 but the metric looks wrong, inspect `output_dir` manually and re-run `mhng-repo-mind sync` to fill any gaps.
 
 **Zero-friction install (from the main repo):**
 ```bash
@@ -65,7 +67,9 @@ a one-paragraph review of what's in <output_dir>/OVERVIEW.md.
 | `mhng-repo-mind bench "<q>" --no-write` | stdout summary only, skip the bench/<slug>.md file |
 | `mhng-repo-mind bench "<q>" --json` | Machine-readable output |
 
-Produces stdout summary table + `<output_dir>/bench/<slug>.md` with both answers, token counts, cost, wall time, and truncation flags. Use the SDK runner (the default when `ANTHROPIC_API_KEY` is set) for any numbers you intend to publish — the `claude-code` fallback estimates tokens by character count.
+Produces stdout summary table + `<output_dir>/bench/<slug>.md` with both answers, token counts, cost, wall time, and truncation flags. Use the SDK runner (the default when `ANTHROPIC_API_KEY` is set) for any numbers you intend to publish — the `claude-code` fallback estimates tokens as `character_count / 4`, which is a rough proxy, not real tokenization.
+
+**Windows note.** `bench --runner claude-code` pipes the prompt via stdin (not argv), so multi-hundred-KB prompts no longer hit the cmd.exe argv length limit. If you see `exit null` from bench on a pre-fix build, update mhng-repo-mind. The runner also honors `REPO_MIND_LLM_CMD` for custom binaries / tests.
 
 Pricing defaults to Opus (`$15/1M in`, `$75/1M out`). Override with `REPO_MIND_PRICE_INPUT` / `REPO_MIND_PRICE_OUTPUT` if you're benching a different model.
 
@@ -163,3 +167,16 @@ Pricing defaults to Opus (`$15/1M in`, `$75/1M out`). Override with `REPO_MIND_P
 | `ANTHROPIC_API_KEY` | Forwarded to the LLM runner |
 | `REPO_MIND_PRICE_INPUT` | USD per 1M input tokens for `init --estimate` |
 | `REPO_MIND_PRICE_OUTPUT` | USD per 1M output tokens for `init --estimate` |
+
+## Windows + Node 24 notes
+
+These are the rough edges surfaced by the first real end-to-end run on Windows 11 / Node 24 and fixed in the current mhng-repo-mind release. If you encounter any of them, make sure you're on the post-fix build.
+
+- **`auto` aborts with `metric: 0/<N> analyses present` after init succeeds.** Pre-fix bug — the metric check counted manifest nodes instead of real `.md` files on disk. Post-fix behavior: the metric counts files on disk, and even a real metric mismatch only logs `⚠` and continues.
+- **`bench --runner claude-code` dies with `exit null`.** Pre-fix bug — the prompt was passed as an argv element and exceeded the Windows argv limit. Post-fix: prompt is piped via stdin, errors surface stderr + signal.
+- **`DEP0190` deprecation warnings on every LLM command.** Pre-fix bug — `spawn(cmd, argsArray, { shell: true })` is deprecated on Node 24 and will be a hard error on Node 26. Post-fix: every offender builds the command line as a single string on Windows.
+- **`manifest` reports `<N> nodes, 1 summaries` after init wrote 3.** Pre-fix bug — the builder only synthesized summary entries from `rolls_up_to`. Post-fix: walks `output_dir` for `_SUMMARY.md` files and merges them in.
+- **`doctor` warns about sibling clones sharing a parent directory.** Pre-fix bug — the worktree check used `git rev-parse --git-common-dir` and flagged any two repos under a common ancestor. Post-fix: checks nested `output_dir`/`target_repo` via plain path comparison.
+- **Every analysis ships with `prompt_sha: "unknown"`.** Pre-fix bug — `init` did not hash the prompt file. Post-fix: the CLI computes the 16-hex sha of `prompts/file-analysis.md` and injects it into the prompt context block; every `generated_by.prompt_sha` is populated on the first run.
+- **Frontmatter leaks `src\lib\foo.ts.md`.** Pre-fix bug — `path.join` on Windows. Post-fix: `walkSources` normalizes to forward slashes and `manifest.mjs` uses `path.posix.join` for `analysis` paths.
+- **`init --estimate --verbose`** now prints the fully-resolved file list so you can sanity-check scope on large repos without re-running `select`.

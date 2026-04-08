@@ -8,7 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-_Nothing yet._
+### Updated — cli-cheatsheet.md to match mhng-repo-mind Windows fixes
+- Added a "Windows + Node 24 notes" section covering the 8 rough edges surfaced by the first real end-to-end run: `auto` metric false-abort, `bench --runner claude-code` `exit null`, `DEP0190` warnings, `manifest` group-summary loss, `doctor` sibling false-positive, `prompt_sha: "unknown"`, Windows path separators in frontmatter, and `init --estimate --verbose`.
+- Clarified the `auto` pipeline semantics: exit-code failures abort on criticals; metric probes only warn. Summary uses `✓` / `⚠` / `✗` / `∅`.
+- Noted that `bench --runner claude-code` now pipes prompts via stdin and honors `REPO_MIND_LLM_CMD` for custom runners / tests.
+- Flagged that `claude-code` token counts are `character_count / 4` estimates, not real tokenization.
 
 ## [1.8.0] - 2026-04-08 — runner overhaul + branch parity
 
