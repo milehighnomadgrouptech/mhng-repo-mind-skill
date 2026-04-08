@@ -17,6 +17,7 @@ After installing the skill, Claude can:
 - **Run compliance checks** against 7 frameworks with ~140 specific control IDs.
 - **Find cross-file bugs** by matching `assumes` and `enforces` contracts across the dependency graph.
 - **Produce a project overview**, glossary, entry points, dead code report, dependency diagrams, and task-oriented narrative guides.
+- **Generate process-tree deep-dives** (v1.7) — multi-file walkthroughs of user-declared business workflows, with AI-assisted discovery (`process --discover`) that proposes processes for human review.
 
 If you also install the **`mhng-repo-mind` CLI**, Claude shells out to it for the heavy lifting. If not, Claude operates the prompts directly — slower, but it works without any install.
 

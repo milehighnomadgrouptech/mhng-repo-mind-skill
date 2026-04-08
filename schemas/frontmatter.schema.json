@@ -69,6 +69,146 @@
       "description": "One sentence identifying the single most suspicious thing in this file, or 'none — looks correct under visible constraints'."
     },
 
+    "lock": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, this analysis must NOT be overwritten by `sync`, `add`, or any LLM pass. Set on hand-tuned files. `mhng-repo-mind sync` skips locked files entirely."
+    },
+
+    "source": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, this file is a SOURCE — vendored, generated, or otherwise consumed-but-not-owned. Sources get a lighter analysis, are skipped by `audit`, and are listed in SOURCES.md."
+    },
+
+    "disabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true (spec v1.5), this analysis is kept in the manifest for retrieval but EXCLUDED from `audit`, `compliance`, `coverage`, `drift`. Use for archived/deprecated code that should remain documented but not actively reasoned about."
+    },
+
+    "meta": {
+      "type": "object",
+      "description": "Free-form key-value pairs (spec v1.5). mhng-repo-mind never reads this directly — it's an extension point for users. Examples: { owner: 'billing-team', pii_severity: 'high', last_security_review: '2026-Q1' }. Queryable via `mhng-repo-mind query --meta key=value`.",
+      "additionalProperties": true
+    },
+
+    "first_seen_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of when this node first appeared in the manifest (spec v1.5). Set on creation, never updated. Combined with `analyzed_at`, gives the age of every documented file. Used for 'show me code that's been around 6+ months without re-audit' queries."
+    },
+
+    "semantic_parents": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Source paths this file conceptually depends on BEYOND import edges (spec v1.5). For example, an `assumes` block points at another file's `enforces` — that's a semantic edge even without an import statement. Surfaces in `drift` and `audit`."
+    },
+
+    "config_parents": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Source paths whose configuration affects this file (spec v1.5). For example, a Next.js page is configured by `next.config.js` even though it doesn't import it. Lets `drift` flag config-driven impact."
+    },
+
+    "access": {
+      "type": "string",
+      "enum": ["public", "protected", "private"],
+      "default": "public",
+      "description": "Access modifier (spec v1.6). `public` = exported across groups, `protected` = usable within the same group only, `private` = internal-only. `audit` flags any cross-group import of a `private` node."
+    },
+
+    "version": {
+      "type": ["integer", "string"],
+      "description": "Version number for this node (spec v1.6). Used for breaking-change governance — bumping the version is required when an `enforces` block is removed or weakened. Refs without a version pin resolve to `latest_version`."
+    },
+
+    "latest_version": {
+      "type": ["integer", "string"],
+      "description": "The maximum version number across all known versions of this node (spec v1.6). Computed by the manifest builder, not set manually."
+    },
+
+    "deprecation_date": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date after which this node is considered deprecated (spec v1.6). `mhng-repo-mind deprecated` lists nodes past this date. `audit` flags new dependencies on deprecated nodes."
+    },
+
+    "deprecation_reason": {
+      "type": "string",
+      "description": "Optional one-line explanation of why this node is being deprecated and what to use instead."
+    },
+
+    "generated_by": {
+      "type": "object",
+      "description": "Provenance — which tool/model/version produced this file. Required on every machine-generated analysis. Used by `mhng-repo-mind provenance` and `mhng-repo-mind migrate` to track and re-run analyses across model versions.",
+      "required": ["tool", "tool_version", "spec_version", "model", "generated_at"],
+      "additionalProperties": false,
+      "properties": {
+        "tool":              { "type": "string", "description": "Always 'mhng-repo-mind' (other tools that produce mhng-repo-mind-shaped output use their own name)." },
+        "tool_version":      { "type": "string", "description": "Semver of the mhng-repo-mind CLI that wrote this file." },
+        "spec_version":      { "type": "string", "description": "Spec version this file conforms to (matches top-level spec_version)." },
+        "model":             { "type": "string", "description": "LLM model id, e.g. 'claude-opus-4-6', 'claude-sonnet-4-6', 'gpt-4o', etc." },
+        "model_alias":       { "type": "string", "description": "Optional human-readable model name." },
+        "runner":            { "type": "string", "description": "How the model was invoked, e.g. 'claude-code', 'anthropic-sdk', 'openai-sdk'." },
+        "runner_version":    { "type": "string", "description": "Version of the runner tool, if known." },
+        "prompt_path":       { "type": "string", "description": "Relative path to the prompt file used (e.g. 'prompts/file-analysis.md')." },
+        "prompt_sha":        { "type": "string", "pattern": "^[0-9a-f]{16}$", "description": "First 16 hex chars of sha256 of the prompt file at generation time." },
+        "system_prompt_sha": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+        "settings": {
+          "type": "object",
+          "description": "Inference settings applied (only what's known — leave fields out if not set).",
+          "additionalProperties": true,
+          "properties": {
+            "temperature":   { "type": ["number", "null"] },
+            "max_tokens":    { "type": ["integer", "null"] },
+            "top_p":         { "type": ["number", "null"] },
+            "stop_sequences":{ "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "generated_at":      { "type": "string", "format": "date-time" },
+        "duration_ms":       { "type": "integer", "minimum": 0 },
+        "input_tokens":      { "type": "integer", "minimum": 0 },
+        "output_tokens":     { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "processes": {
+      "type": "array",
+      "description": "Process membership (spec v1.7). On a per-file forensic analysis: lists every process+stage this file belongs to, so the file's analysis links back to all of them. On a process stage .md: typically a single entry naming its own process+stage and breadcrumb. Populated by `mhng-repo-mind process`; never invented by per-file analysis prompts.",
+      "items": {
+        "type": "object",
+        "required": ["process", "stage"],
+        "additionalProperties": false,
+        "properties": {
+          "process":    { "type": "string", "description": "Process name from docs.config.json." },
+          "stage":      { "type": "string", "description": "Stage name (leaf or branch) within that process." },
+          "breadcrumb": { "type": "array", "items": { "type": "string" }, "description": "Full path from process root to this node, e.g. ['attribution_insurance','intake','validation']." },
+          "kind":       { "type": "string", "enum": ["root", "branch", "leaf"] },
+          "md_path":    { "type": "string", "description": "Path to the stage's OVERVIEW.md or <name>.md, relative to output_dir." }
+        }
+      }
+    },
+
+    "process_node": {
+      "type": "object",
+      "description": "Self-description block on a process stage .md file (spec v1.7). Identifies which process tree this file represents and wires up navigation.",
+      "required": ["process", "name", "kind", "breadcrumb"],
+      "additionalProperties": false,
+      "properties": {
+        "process":      { "type": "string" },
+        "name":         { "type": "string" },
+        "kind":         { "type": "string", "enum": ["root", "branch", "leaf"] },
+        "breadcrumb":   { "type": "array", "items": { "type": "string" } },
+        "parent":       { "type": ["string", "null"], "description": "Path to parent OVERVIEW.md, or null at the root." },
+        "children":     { "type": "array", "items": { "type": "string" }, "description": "Paths to child OVERVIEW.md / leaf .md files (branches only)." },
+        "prev_sibling": { "type": ["string", "null"] },
+        "next_sibling": { "type": ["string", "null"] },
+        "source_files": { "type": "array", "items": { "type": "string" }, "description": "Source paths covered (leaves only)." },
+        "coverage_sha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{16}$" }
+      }
+    },
+
     "intents": {
       "type": "array",
       "description": "Structured classification of WHY this file (or a block in it) exists. IDs must come from schemas/intents.v1.yaml. Compliance intents require an `evidence` string and at least one `controls` entry.",

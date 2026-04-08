@@ -133,9 +133,33 @@ Prompts in `prompts/` are versioned implicitly by the spec version in the frontm
 2. Updating `CHANGELOG.md`
 3. Considering whether `spec_version` should bump
 
+## 4b. Process trees (spec v1.7)
+
+`docs.config.json` may declare `processes: [...]`, an array of independent recursive trees describing user-declared business workflows (e.g. attribution, claims intake, enrollment). Each process is a `processNode` defined in [`schemas/docs.config.schema.json`](../schemas/docs.config.schema.json):
+
+- `name` — stable identifier within its parent. Renaming is a manual operation; never auto-renamed.
+- `description` — human prose.
+- `stages` — recursive array of child `processNode`s. Empty/missing means this is a leaf.
+- `file_patterns` and/or `tags_include` — required on leaves. A leaf's covered files = union of glob matches against the manifest + every file carrying any of the listed intent IDs.
+- `lock` — if true, `mhng-repo-mind process` skips regenerating this node's .md.
+- `group` (top-level only) — optional INDEX.md grouping label.
+- `compliance_relevant` (top-level only) — surfaces the process as a unit in compliance reports.
+
+`mhng-repo-mind process` walks each tree and produces a multi-file deep-dive under `<output_dir>/processes/<process>/`:
+
+- Branches → `<.../>OVERVIEW.md` (rollup).
+- Leaves → `<.../><name>.md` (deep-dive on actual source files via per-file analyses).
+- Every stage .md carries a `process_node` frontmatter block with breadcrumb, parent/child links, prev/next siblings, and `coverage_sha`.
+
+The manifest's `processes` block (defined in [`schemas/manifest.schema.json`](../schemas/manifest.schema.json)) mirrors the tree shape with computed `coverage_sha` per node. Branches hash over their children; leaves hash over (sorted source `analysis_sha`s + `prompt_sha` + node config). Idempotency: a node regenerates only when its `coverage_sha` changes or `--force` is passed.
+
+Per-file forensic analyses gain an additive `processes: [...]` frontmatter array listing every (process, stage) the file belongs to, so the file's analysis links back to all of them.
+
+**Discovery** (`mhng-repo-mind process --discover`) is read-only against config: it writes `<output_dir>/processes/DISCOVERED.md` with proposed processes for the human to review and ratify into `docs.config.json`. It never edits config and never edits the manifest.
+
 ## 5. Config contract
 
-[`schemas/docs.config.schema.json`](../schemas/docs.config.schema.json) defines `docs.config.json`. Required fields: `spec_version`, `target_repo`, `output_dir`. Everything else is optional with defaults.
+[`schemas/docs.config.schema.json`](../schemas/docs.config.schema.json) defines `docs.config.json`. Required fields: `spec_version`, `target_repo`. Everything else is optional with defaults. When `output_dir` is omitted, it defaults to a sibling directory of `target_repo` named `<basename(target_repo)>-mhng-repo-mind`.
 
 New config fields are additive and don't require a spec bump. Removing or renaming fields does.
 

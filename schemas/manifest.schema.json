@@ -7,6 +7,22 @@
   "required": ["spec_version", "generated_at", "root_repo", "root_analyses", "nodes", "summaries"],
   "additionalProperties": false,
   "properties": {
+    "metadata": {
+      "type": "object",
+      "description": "Top-level metadata envelope (spec v1.5). Identifies which mhng-repo-mind invocation produced this manifest, against which git ref, with what spec version. Stable across rebuilds via invocation_id.",
+      "additionalProperties": true,
+      "properties": {
+        "spec_version":      { "type": "string" },
+        "schema_url":        { "type": "string" },
+        "repo_mind_version": { "type": ["string", "null"] },
+        "invocation_id":     { "type": "string", "description": "UUID for this specific manifest build. Different on every rebuild." },
+        "generated_at":      { "type": "string", "format": "date-time" },
+        "git_ref":           { "type": ["string", "null"], "description": "git rev-parse HEAD of target_repo at build time." },
+        "git_branch":        { "type": ["string", "null"] },
+        "target_repo":       { "type": "string" },
+        "output_dir":        { "type": "string" }
+      }
+    },
     "spec_version": { "type": "string", "const": "1" },
     "generated_at": { "type": "string", "format": "date-time" },
     "root_repo":    { "type": "string" },
@@ -17,25 +33,93 @@
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "required": ["analysis", "kind", "source_sha"],
+        "required": ["analysis", "kind"],
         "additionalProperties": false,
         "properties": {
-          "analysis":       { "type": "string" },
-          "group":          { "type": "string" },
-          "kind":           { "type": "string" },
-          "source_sha":     { "type": "string", "pattern": "^[0-9a-f]{16}$" },
-          "source_mtime":   { "type": ["string", "integer"] },
-          "analysis_sha":   { "type": ["string", "null"], "pattern": "^[0-9a-f]{16}$" },
-          "exports":        { "type": "array", "items": { "type": "string" } },
-          "depends_on":     { "type": "array", "items": { "type": "string" } },
-          "depends_on_raw": { "type": "array", "items": { "type": "string" } },
-          "depended_on_by": { "type": "array", "items": { "type": "string" } },
-          "rolls_up_to":    { "type": "string" },
-          "assumes":        { "type": "array" },
-          "enforces":       { "type": "array" },
-          "risks":          { "type": "array" },
-          "top_suspicion":  { "type": "string" },
-          "intents":        { "type": "array" }
+          "unique_id":         { "type": "string", "description": "Stable content-addressable id (spec v1.5). Survives reorganization within the same group." },
+          "analysis":          { "type": "string" },
+          "group":             { "type": "string" },
+          "kind":              { "type": "string" },
+          "checksum":          {
+            "type": "object",
+            "description": "Typed checksum block (spec v1.5). Replaces flat source_sha as the primary form. source_sha is still emitted for backwards compatibility.",
+            "properties": {
+              "name":  { "type": "string", "examples": ["sha256", "blake3"] },
+              "value": { "type": "string" }
+            }
+          },
+          "source_sha":        { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+          "source_mtime":      { "type": ["string", "integer"] },
+          "first_seen_at":     { "type": ["string", "null"], "format": "date-time", "description": "When this node first appeared in the manifest. Preserved across rebuilds." },
+          "last_analyzed_at":  { "type": ["string", "null"], "format": "date-time" },
+          "analysis_sha":      { "type": ["string", "null"], "pattern": "^[0-9a-f]{16}$" },
+          "exports":           { "type": "array", "items": { "type": "string" } },
+          "depends_on":        { "type": "array", "items": { "type": "string" } },
+          "depends_on_raw":    { "type": "array", "items": { "type": "string" } },
+          "depended_on_by":    { "type": "array", "items": { "type": "string" } },
+          "semantic_parents":  { "type": "array", "items": { "type": "string" }, "description": "Conceptual upstream beyond import edges (spec v1.5)." },
+          "semantic_children": { "type": "array", "items": { "type": "string" }, "description": "Inverted from semantic_parents." },
+          "config_parents":    { "type": "array", "items": { "type": "string" }, "description": "Files whose configuration affects this node (spec v1.5)." },
+          "rolls_up_to":       { "type": "string" },
+          "assumes":           { "type": "array" },
+          "enforces":          { "type": "array" },
+          "risks":             { "type": "array" },
+          "top_suspicion":     { "type": "string" },
+          "intents":           { "type": "array" },
+          "lock":              { "type": "boolean" },
+          "source":            { "type": "boolean" },
+          "disabled":          { "type": "boolean", "description": "If true (spec v1.5), excluded from audit/compliance/coverage/drift but still in the manifest." },
+          "meta":              { "type": "object", "description": "Free-form user-defined key-value pairs (spec v1.5)." },
+          "generated_by":      { "type": "object" }
+        }
+      }
+    },
+    "exposures": {
+      "type": "array",
+      "description": "Downstream consumers OUTSIDE this repo (sibling apps, dashboards, mobile clients). Mirrored from docs.config.json.exposures so cross-repo impact analysis works.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": true,
+        "properties": {
+          "name":       { "type": "string" },
+          "type":       { "type": "string" },
+          "owner":      { "type": "string" },
+          "url":        { "type": "string" },
+          "maturity":   { "type": "string" },
+          "depends_on": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Top-level aggregate of generated_by metadata across all nodes. Lets you ask 'how many files were generated by claude-opus-4-6' without scanning every analysis.",
+      "additionalProperties": false,
+      "properties": {
+        "models": {
+          "type": "object",
+          "description": "Map of model id → { count, first_seen, last_seen }.",
+          "additionalProperties": { "type": "object" }
+        },
+        "tool_versions":  { "type": "array", "items": { "type": "string" } },
+        "spec_versions":  { "type": "array", "items": { "type": "string" } },
+        "prompt_shas":    { "type": "object", "additionalProperties": { "type": "string" } },
+        "locked_count":   { "type": "integer" }
+      }
+    },
+    "processes": {
+      "type": "object",
+      "description": "User-declared process trees populated from docs.config.json + the per-process .md files on disk (spec v1.7). Each top-level entry is one independent process. The `node` field is the recursive root.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["node"],
+        "additionalProperties": false,
+        "properties": {
+          "description":         { "type": "string" },
+          "group":               { "type": "string" },
+          "compliance_relevant": { "type": "boolean" },
+          "node":                { "$ref": "#/$defs/processManifestNode" },
+          "generated_by":        { "type": "object" }
         }
       }
     },
@@ -50,6 +134,25 @@
           "covers":      { "type": "array", "items": { "type": "string" } },
           "summary_sha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{16}$" }
         }
+      }
+    }
+  },
+  "$defs": {
+    "processManifestNode": {
+      "type": "object",
+      "description": "Recursive process tree node as stored in the manifest (spec v1.7). Three kinds: root (process top), branch (intermediate stage with children → has OVERVIEW.md), leaf (terminal stage → has <name>.md).",
+      "required": ["name", "kind", "md_path"],
+      "additionalProperties": false,
+      "properties": {
+        "name":         { "type": "string" },
+        "kind":         { "type": "string", "enum": ["root", "branch", "leaf"] },
+        "description":  { "type": "string" },
+        "md_path":      { "type": "string", "description": "Path to OVERVIEW.md (root/branch) or <name>.md (leaf), relative to output_dir." },
+        "lock":         { "type": "boolean" },
+        "source_files": { "type": "array", "items": { "type": "string" }, "description": "Source paths covered by this node. For branches, the union of all descendant leaves." },
+        "coverage_sha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{16}$", "description": "Hash of (sorted descendant analysis_shas + prompt_sha + node config). Branches hash over their children's coverage_shas. Used by `process` to skip regenerating unchanged nodes." },
+        "children":     { "type": "array", "items": { "$ref": "#/$defs/processManifestNode" } },
+        "generated_by": { "type": "object" }
       }
     }
   }

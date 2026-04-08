@@ -53,6 +53,11 @@
 |---|---|
 | `mhng-repo-mind overview` | Generate OVERVIEW.md — what kind of project is this |
 | `mhng-repo-mind guide "<question>"` | Generate a cross-file narrative guide in GUIDES/ |
+| `mhng-repo-mind process` | Generate multi-file deep-dives for user-declared business processes (one OVERVIEW.md per branch, one `<stage>.md` per leaf) |
+| `mhng-repo-mind process --discover` | Propose processes by clustering files; writes `DISCOVERED.md` for human review (never edits config) |
+| `mhng-repo-mind process --process <name>` | Regenerate a single process tree only |
+| `mhng-repo-mind process --force` | Regenerate even unchanged (matching `coverage_sha`) nodes |
+| `mhng-repo-mind process --dry-run` | Show which nodes would be regenerated without invoking the LLM |
 
 ## Retrieval
 | Command | Purpose |

@@ -380,6 +380,8 @@ mhng-repo-mind contracts               # match assume/enforce pairs across files
 mhng-repo-mind drift <git-ref>         # downstream contract check vs git ref
 mhng-repo-mind guide "<question>"      # task-oriented narrative walkthrough
 mhng-repo-mind overview                # OVERVIEW.md project synthesis
+mhng-repo-mind process                 # generate multi-file deep-dives for declared business processes
+mhng-repo-mind process --discover      # propose processes by clustering files; writes DISCOVERED.md for human review
 mhng-repo-mind migrate --from <model> [--to <model>]   # re-analyze old-model files
 ```
 

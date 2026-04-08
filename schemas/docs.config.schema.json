@@ -3,7 +3,7 @@
   "$id": "https://mhng-repo-mind.dev/schemas/v1/docs.config.schema.json",
   "title": "mhng-repo-mind project config",
   "type": "object",
-  "required": ["spec_version", "target_repo", "output_dir"],
+  "required": ["spec_version", "target_repo"],
   "additionalProperties": false,
   "properties": {
     "$schema":      { "type": "string" },
@@ -47,6 +47,76 @@
       "description": "User's own deterministic tools. Run by `mhng-repo-mind lint`; their output is prepended to audit passes so the LLM does not re-report.",
       "additionalProperties": { "type": "string" }
     },
+    "hooks": {
+      "type": "object",
+      "description": "Lifecycle hooks (spec v1.6). Each key is `on_<command>_<phase>` where command is init|sync|add|audit|compliance|... and phase is start|end. `on_any_start` and `on_any_end` fire for every command. Each value is an array of shell commands run from target_repo. on_*_start failures are fatal; on_*_end failures are non-fatal warnings.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "exposures": {
+      "type": "array",
+      "description": "Downstream consumers OUTSIDE this codebase (sibling apps, dashboards, mobile clients, partner integrations). drift and audit walk into them so cross-repo impact shows up in PR reports.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name":       { "type": "string" },
+          "type":       { "type": "string", "enum": ["client", "dashboard", "ml-model", "api-consumer", "service", "notebook", "report", "other"] },
+          "owner":      { "type": "string" },
+          "url":        { "type": "string" },
+          "maturity":   { "type": "string", "enum": ["high", "medium", "low"] },
+          "notes":      { "type": "string" },
+          "depends_on": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "description": "Declared external sources WITHOUT a lockfile (REST APIs, OAuth providers, etc). Things WITH a lockfile are auto-detected.",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name":          { "type": "string" },
+          "type":          { "type": "string" },
+          "owner":         { "type": "string" },
+          "url":           { "type": "string" },
+          "version":       { "type": "string" },
+          "last_reviewed": { "type": "string", "format": "date", "description": "ISO 8601 date of the last human review of this source. Used by `mhng-repo-mind freshness` to flag stale sources." },
+          "freshness":     {
+            "type": "object",
+            "description": "Freshness window for this source (spec v1.5). Borrowed from dbt source freshness.",
+            "properties": {
+              "warn_after_days":  { "type": "integer", "minimum": 0 },
+              "error_after_days": { "type": "integer", "minimum": 0 }
+            }
+          },
+          "notes":         { "type": "string" }
+        }
+      }
+    },
+    "materializations": {
+      "type": "object",
+      "description": "Per-kind override of analysis depth, template, source flag, audit inclusion, token estimate. Defaults live in src/materializations.mjs.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "template":         { "type": "string" },
+          "sections":         { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
+          "estimated_tokens": { "type": "integer" },
+          "source":           { "type": "boolean" },
+          "audit":            { "type": "boolean" }
+        }
+      }
+    },
+    "processes": {
+      "type": "array",
+      "description": "User-declared business processes (spec v1.7). Each process is an independent recursive tree of stages. mhng-repo-mind generates a multi-file deep-dive per process: one OVERVIEW.md per non-leaf node, one <stage>.md per leaf. Stages are resolved against the manifest via file_patterns and/or tags_include. Names are stable across runs — `mhng-repo-mind process --discover` proposes a draft for human review, never writes config.",
+      "items": { "$ref": "#/$defs/processNode" }
+    },
     "compliance": {
       "type": "object",
       "description": "Compliance tagging + coverage configuration.",
@@ -72,6 +142,24 @@
           "description": "Custom rules evaluated by `mhng-repo-mind coverage`. Each rule has `name`, `when` (file_matches/tags_include/kind), and `require` (tags_include or compliance_framework_includes).",
           "items": { "type": "object" }
         }
+      }
+    }
+  },
+  "$defs": {
+    "processNode": {
+      "type": "object",
+      "description": "Recursive process/stage node. Top-level entries are processes (the root); nested entries under `stages` are stages and substages. A leaf node MUST have file_patterns and/or tags_include. A branch node's covered files are the union of its descendants' files.",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name":               { "type": "string", "description": "Stable identifier within its parent. Must be unique among siblings. Use snake_case. Renaming is a manual operation — never auto-renamed." },
+        "description":        { "type": "string" },
+        "group":              { "type": "string", "description": "Top-level only. Optional grouping label for INDEX.md rendering. Has no semantic meaning beyond presentation." },
+        "compliance_relevant":{ "type": "boolean", "default": false, "description": "Top-level only. If true, the process appears in compliance and audit reports as a unit, not just file-by-file." },
+        "file_patterns":      { "type": "array", "items": { "type": "string" }, "description": "Glob patterns (resolved against target_repo) that match this stage's source files. Required for leaf stages unless tags_include is set." },
+        "tags_include":       { "type": "array", "items": { "type": "string" }, "description": "Frontmatter `intents[].id` values whose files belong to this stage. Required for leaf stages unless file_patterns is set. Tag-based discovery survives folder reorganization." },
+        "lock":               { "type": "boolean", "default": false, "description": "If true, mhng-repo-mind process skips regenerating this node's .md even when its source files change. Hand-tuned content is preserved." },
+        "stages":             { "type": "array", "items": { "$ref": "#/$defs/processNode" }, "description": "Child stages. A node with `stages` is a branch (gets OVERVIEW.md); without `stages` is a leaf (gets <name>.md)." }
       }
     }
   }
