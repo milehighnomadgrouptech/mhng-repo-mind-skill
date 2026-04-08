@@ -1,0 +1,17 @@
+{
+  "name": "mhng-marketplace",
+  "owner": {
+    "name": "milehighnomadgrouptech",
+    "url": "https://github.com/milehighnomadgrouptech"
+  },
+  "plugins": [
+    {
+      "name": "mhng-repo-mind",
+      "source": ".",
+      "description": "Forensic per-file analyses, dbt-style dependency graph, cross-file contract audits, compliance reports, and branch-parity docs for any codebase.",
+      "version": "1.8.0",
+      "category": "documentation",
+      "tags": ["documentation", "code-analysis", "compliance", "audit"]
+    }
+  ]
+}
