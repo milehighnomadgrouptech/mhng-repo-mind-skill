@@ -19,6 +19,17 @@ This release bundles **every feature built across internal spec milestones v1.0 
 - **`src/commands/doctor.mjs`** — preflight `claude --version` check uses shell mode for the same reason.
 - **`src/commands/validate.mjs`** — switched Ajv import from `ajv` to `ajv/dist/2020.js` (draft 2020-12 build) to match the rest of the codebase.
 
+### Added — side-by-side benchmark (`bench`)
+- **`mhng-repo-mind bench <question>`** — runs the same question against two contexts (raw source vs mhng-repo-mind output) and produces a side-by-side markdown report with token counts, cost, wall time, and both answers. The fastest way to demonstrate the pre-digestion value proposition: *"same question, one side is 70% cheaper and cites specific analysis files"*.
+- **Dual runner**:
+  - `sdk` (recommended) — direct `fetch` call to the Anthropic Messages API, exact input/output token counts from the `usage` field. No new npm deps. Requires `ANTHROPIC_API_KEY`.
+  - `claude-code` (fallback) — shells out to `claude -p` and estimates tokens via character count / 4. Fine for local exploration; use the SDK runner for any public benchmark numbers.
+  - Auto-detects: SDK if `ANTHROPIC_API_KEY` is set, otherwise claude-code. Force either with `--runner`.
+- **`src/anthropic.mjs`** — tiny fetch-based wrapper (`anthropicMessage`, `estimateTokens`, `AnthropicError`). Zero dependencies.
+- **Output**: stdout summary table + `<output_dir>/bench/<slug>.md` with the full side-by-side, both answers, a truncation warning when the raw-repo context exceeds `--max-context-chars` (default 600k chars ≈ 150k tokens), and an "observations" section for human notes.
+- **Pricing**: honors existing `REPO_MIND_PRICE_INPUT` / `REPO_MIND_PRICE_OUTPUT` env vars; defaults to Opus pricing ($15 in / $75 out per 1M tokens).
+- **Flags**: `--runner`, `--model`, `--max-context-chars`, `--only raw|analyses`, `--no-write`, `--json`.
+
 ### Added — one-shot pipeline runner (`auto`)
 - **`mhng-repo-mind auto`** — end-to-end pipeline runner for unattended runs on a fresh target. Bootstraps a default `docs.config.json` if the target has none, then walks: doctor → init → manifest → validate → symbols → glossary → entry-points → dead-code → graph → intents → compliance → coverage → sources → overview → contracts → audit → process --discover → process. Critical steps abort on failure; best-effort steps log warnings and continue. Flags: `--skip-audit`, `--skip-process`, `--output <dir>`.
 
