@@ -33,7 +33,7 @@ These are the invariants. Break them and you break the tool.
 
 5. **Deterministic commands must not call an LLM.** Anything that can be done with a hash, a glob, or graph traversal must stay LLM-free. This is what keeps the tool fast, reproducible, and cheap.
 
-6. **LLM commands delegate to Claude Code slash commands.** The CLI (`src/commands/*.mjs`) is a thin shim that runs `claude -p "/docs-..."`. The slash commands (`/.claude/commands/docs-*.md`) contain the orchestration logic and prompt references. This separation is deliberate — see [DECISIONS.md](DECISIONS.md#llm-delegation).
+6. **LLM commands inline a prompt body and pipe it to `claude -p` over stdin.** The CLI (`src/commands/*.mjs`) is still a thin shim, but as of spec v1.8 (2026-04-08) the runner reads `.claude/commands/docs-*.md` from disk as **prompt source**, renders `{{VARS}}` in Node, and pipes the inlined body to `claude -p` over stdin. **Do not reintroduce `claude -p "/docs-init"` invocation** — Claude Code 2.1.92 doesn't execute slash commands via `-p`, and Windows argv mangles CRLF in long bodies. Both failure modes were why the slash-command model was dropped. See [DECISIONS.md](DECISIONS.md#adr-003-llm-delegation-via-inline-prompt--stdin-was-slash-command).
 
 7. **Compliance tags carry legal disclaimers and require evidence.** Never relax this. Compliance output is reviewed by humans with liability — the disclaimers and mandatory evidence fields protect them.
 

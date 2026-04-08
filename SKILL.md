@@ -66,7 +66,7 @@ The **manifest.json** is the single source of truth. When in doubt about anythin
 You will operate in one of three modes depending on what's available on the user's machine.
 
 ### Mode 1: Full CLI installed (preferred)
-The `mhng-repo-mind` CLI is installed and on `$PATH`. You delegate work to it via the Bash tool. This is the canonical mode — the CLI knows how to spawn subagents in parallel, write the manifest correctly, capture run-results, and respect every spec invariant.
+The `mhng-repo-mind` CLI is installed and on `$PATH`. You delegate work to it via the Bash tool. This is the canonical mode — the CLI knows how to spawn LLM passes (it reads `.claude/commands/docs-*.md` from the tool repo as prompt source and pipes the rendered body to `claude -p` over stdin — there are **no slash commands invoked at runtime**), write the manifest correctly, capture run results, verify artifacts post-run, and respect every spec invariant.
 
 When in Mode 1, your job is to:
 1. Decide which `mhng-repo-mind` subcommand the user needs
@@ -385,6 +385,19 @@ mhng-repo-mind process --discover      # propose processes by clustering files; 
 mhng-repo-mind migrate --from <model> [--to <model>]   # re-analyze old-model files
 ```
 
+### Branch parity (spec v1.8)
+```bash
+mhng-repo-mind branch-status                    # show which branch the docs store is aligned with
+mhng-repo-mind branch-sync                      # switch the docs store to match the target's current branch
+mhng-repo-mind branch-sync --create             # bootstrap a new docs branch if missing
+mhng-repo-mind ask "<question>"                 # retrieval against the manifest
+mhng-repo-mind ask "<question>" --branch <name> # retrieval pinned to a specific docs branch
+mhng-repo-mind resolve-merge <file>             # git merge driver for analysis .md files (uses frontmatter source_sha)
+mhng-repo-mind watch --branch-mode              # watcher follows target-branch switches and re-syncs the matching docs branch
+```
+
+Configure with the optional `branches:` block in `docs.config.json` (default `mode: "single"` preserves prior behavior; `mode: "parity"` derives `target_repo` as `<target_worktree_root>/<docs-branch-name>` and enforces docs-branch-name === target-branch-name).
+
 ### Retrieval (no LLM)
 ```bash
 mhng-repo-mind query "<text>"          # keyword retrieval
@@ -433,6 +446,7 @@ mhng-repo-mind runs --last             # full JSON of last run
 
 ### Global flags
 - `--config <path>` — path to docs.config.json
+- `--ref <sha>` — pin to a git ref. If target HEAD ≠ `manifest.metadata.git_ref` and `--ref` doesn't reconcile them, the command refuses to run.
 - `--verbose` — more logging
 - `--json` — machine-readable output
 - `--dry-run` — show plan without LLM

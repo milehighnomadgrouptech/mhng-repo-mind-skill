@@ -2,6 +2,25 @@
 
 What's done, what's planned, and what was deliberately deferred. Start new work here — if a feature isn't on this list, consider whether it belongs before implementing.
 
+## Completed 2026-04-08 — runner overhaul + branch parity (spec v1.8)
+
+### Phase A — runner blockers
+- ✅ Dropped `claude -p "/docs-..."` invocation. `src/llm.mjs` now reads `.claude/commands/docs-*.md` as prompt source, renders `{{VARS}}` in Node, and pipes the inlined body to `claude -p` over stdin. Fixes Claude Code 2.1.92 (slash commands not executed via `-p`) and Windows CRLF mangling in argv.
+- ✅ Every LLM-delegating command verifies artifacts post-run; "Unknown skill / Unknown command" leakage or zero artifacts fails the command loudly.
+- ✅ `auto` per-step metric gating; `validate` is critical; init failure aborts the pipeline.
+- ✅ `doctor` round-trips a sentinel through the real runner end-to-end (`--skip-llm-probe` for offline preflight).
+- ✅ Groups trap: diagnostic + catch-all default group is always present so unfamiliar trees never silently produce zero analyses.
+- ✅ ajv `date` / `date-time` formats registered as no-ops (warning noise eliminated).
+
+### Phase B — branch parity
+- ✅ New commands: `branch-status`, `branch-sync [--create]`, `ask "<q>" [--branch <name>]`, `resolve-merge <file>`, `watch --branch-mode`.
+- ✅ Global `--ref <sha>` flag on every command. Mismatch between target HEAD and `manifest.metadata.git_ref` refuses to run unless `--ref` reconciles.
+- ✅ New `branches:` block in `docs.config.json` with `mode: "single"` (default) | `"parity"`, `target_worktree_root`, `pin_model`, `require_clean_target`.
+- ✅ `parity` mode derives `target_repo` as `<target_worktree_root>/<docs-branch-name>` and enforces docs-branch-name === target-branch-name.
+- ✅ `doctor` warns when `target_repo` is inside the same git repo as the docs store and suggests `git worktree add`.
+- ✅ `resolve-merge` git merge driver for analysis `.md` files (uses frontmatter `source_sha`); install lines documented but not auto-installed.
+- ✅ SPEC.md bumped to 1.8 (additive). JSON schema `spec_version` still `"1"`.
+
 ## Shipped (spec v1.2, unreleased)
 
 ### Core pipeline
@@ -96,7 +115,7 @@ What's done, what's planned, and what was deliberately deferred. Start new work 
 ## Known limitations
 
 1. **Never run end-to-end.** The entire pipeline has been scaffolded but not executed against a real target. Expect discovery.
-2. **`.claude/commands/docs-*.md` slash commands assume Claude Code.** They won't work with other LLM runners without adapter work.
+2. **`.claude/commands/docs-*.md` files are read by the runner as prompt source and piped to `claude -p` over stdin.** They are no longer slash commands at runtime. To swap LLM runners, point `REPO_MIND_LLM_CMD` at any binary that accepts a prompt body on stdin.
 3. **Prompts are untuned.** Built from first principles, not empirical data. First 2–3 runs will reveal systematic failure modes.
 4. **No tests.** The deterministic modules are pure enough that writing tests is easy — it just hasn't been done yet.
 5. **Manifest builder doesn't yet validate intents against `taxonomy.mjs`.** Validation happens at `mhng-repo-mind validate` time, but not during `manifest` rebuild. Easy to add: reject unknown IDs as a warning.

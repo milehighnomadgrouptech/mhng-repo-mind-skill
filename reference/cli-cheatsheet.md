@@ -129,6 +129,17 @@ Pricing defaults to Opus (`$15/1M in`, `$75/1M out`). Override with `REPO_MIND_P
 | `mhng-repo-mind query --control <id>` | Exact compliance control match |
 | `mhng-repo-mind query --intent compliance-gdpr` | All files tagged GDPR |
 
+## Branch parity (spec v1.8)
+| Command | Purpose |
+|---|---|
+| `mhng-repo-mind branch-status` | Show which branch the docs store is aligned with; flag if target HEAD ≠ `manifest.metadata.git_ref` |
+| `mhng-repo-mind branch-sync` | Switch the docs store to a sibling branch matching the target's current branch |
+| `mhng-repo-mind branch-sync --create` | Bootstrap a new docs branch if one doesn't exist |
+| `mhng-repo-mind ask "<q>"` | Retrieval against the manifest |
+| `mhng-repo-mind ask "<q>" --branch <name>` | Pin retrieval to a specific docs branch |
+| `mhng-repo-mind resolve-merge <file>` | Git merge driver for analysis `.md` files (uses frontmatter `source_sha`); see `branches:` config for install lines |
+| `mhng-repo-mind watch --branch-mode` | Watcher follows branch switches in the target repo and re-syncs the matching docs branch |
+
 ## Automation
 | Command | Purpose |
 |---|---|
@@ -139,6 +150,7 @@ Pricing defaults to Opus (`$15/1M in`, `$75/1M out`). Override with `REPO_MIND_P
 | Flag | Effect |
 |---|---|
 | `--config <path>` | Path to docs.config.json (default `./docs.config.json`) |
+| `--ref <sha>` | Pin the command to a specific git ref. If target HEAD ≠ `manifest.metadata.git_ref` and `--ref` doesn't reconcile them, the command refuses to run. |
 | `--verbose` | More logging |
 | `--json` | Machine-readable output where applicable |
 | `--dry-run` | Show plan without invoking LLM |
