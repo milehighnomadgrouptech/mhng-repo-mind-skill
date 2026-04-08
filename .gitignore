@@ -1,0 +1,46 @@
+# Local development artifacts
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# Don't commit any local Claude Code state
+.claude/state/
+.claude/cache/
+
+# Don't accidentally commit a local docs.config.json someone made for testing
+docs.config.json
+analyses/**/manifest.json
+analyses/**/AUDIT*.md
+analyses/**/COMPLIANCE*.md
+analyses/**/INTENTS*.md
+analyses/**/COVERAGE.md
+analyses/**/DRIFT*.md
+analyses/**/SOURCES*.md
+analyses/**/PROVENANCE*.md
+analyses/**/LOCKED.md
+analyses/**/snapshots/
+analyses/**/runs/
+
+# Node
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build artifacts
+dist/
+build/
+
+# Allow the self-hosted analyses content (these are tracked, hand-written)
+!analyses/FOR_FUTURE_AI.md
+!analyses/ARCHITECTURE.md
+!analyses/SPEC.md
+!analyses/DECISIONS.md
+!analyses/ROADMAP.md
+!analyses/INDEX.md

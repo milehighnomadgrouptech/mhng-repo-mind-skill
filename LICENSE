@@ -1,0 +1,121 @@
+Functional Source License, Version 1.1, MIT Future License
+
+Abbreviation:            FSL-1.1-MIT
+
+Licensor:                Logan Banks — Mile High Nomad Group
+
+Software:                mhng-repo-mind, including all components, prompts,
+                         schemas, taxonomy files, and documentation
+                         distributed under this license.
+
+
+License Grant
+
+Subject to your compliance with this License, the Licensor grants you
+the right to use, copy, modify, create derivative works, publish, and
+redistribute the Software, in each case subject to the limitations and
+conditions below.
+
+
+Limitations
+
+You may make use of the Software, provided that you may not use the
+Software for a Competing Use. A "Competing Use" means making the
+Software available to third parties as a hosted or embedded service
+that competes with the Licensor's products or services that provide
+the Software.
+
+Permitted Purposes, for example, include but are not limited to:
+
+  1. internal business operations;
+  2. providing professional services to your customers, such as
+     consulting services;
+  3. publishing reports or research using output produced by
+     the Software;
+  4. providing the Software as part of a free, community-supported
+     product or service;
+  5. teaching, learning, evaluation, research, and experimentation;
+  6. running the Software in your own development, build, test, and
+     continuous integration environments.
+
+Patents
+
+To the extent your use for a Permitted Purpose would necessarily
+infringe the Licensor's patents, the patent license stated above
+covers your use. This patent license does not apply to your use of
+the Software for a Competing Use.
+
+If you make a claim against any party that the Software infringes
+or contributes to infringement of any patent, then your patent
+license to the Software ends immediately.
+
+
+Redistribution
+
+The terms of this License apply to all copies of the Software and
+derivative works thereof, in source and binary forms. You must give
+recipients a copy of this License and retain all copyright, patent,
+trademark, and attribution notices.
+
+
+Disclaimer
+
+THE SOFTWARE IS PROVIDED "AS IS" AND WITHOUT WARRANTIES OF ANY KIND
+INCLUDING WITHOUT LIMITATION ANY WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND TITLE.
+
+YOUR USE OF THE SOFTWARE IS AT YOUR OWN RISK. THE LICENSOR WILL NOT BE
+LIABLE TO YOU FOR ANY DAMAGES OF ANY KIND ARISING OUT OF OR RELATED TO
+YOUR USE OR DISTRIBUTION OF THE SOFTWARE, WHETHER IN CONTRACT, TORT, OR
+OTHERWISE, EVEN IF THE LICENSOR HAS BEEN ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGES.
+
+
+Change Date
+
+Two years from the date the Software is first made available under
+this License (the "Change Date"). On the Change Date, this License
+automatically converts to the Change License set forth below.
+
+
+Change License
+
+MIT License
+
+Beginning on the Change Date, the terms of this License are replaced
+in their entirety by the terms of the MIT License, which terms are
+incorporated by reference. From and after the Change Date, you may use
+the Software under the MIT License.
+
+
+Notices
+
+You must conspicuously display this License on each original or
+modified copy of the Software. If you receive the Software in original
+or modified form from a third party, the terms and conditions set
+forth in this License apply to your use of that work.
+
+
+-------------------------------------------------------------------------------
+ABOUT THIS LICENSE
+
+The Functional Source License is a "fair source" license. It allows
+you to use, modify, and redistribute the Software for nearly any
+purpose — internal business operations, consulting work, research,
+teaching, your own CI pipelines, or running it on your own
+infrastructure. The only restriction is that you may not provide the
+Software as a hosted or embedded service that competes with the
+Licensor's commercial offerings.
+
+Two years after each release, that release automatically converts to
+the MIT License — a permissive open-source license — at which point
+all restrictions are lifted.
+
+For commercial licensing, partnership inquiries, or to use mhng-repo-mind
+in a way the FSL does not permit, contact:
+
+  Logan Banks — Mile High Nomad Group
+  logan.banks@mhng.tech
+
+Full text of the FSL-1.1-MIT is available at https://fsl.software/
+-------------------------------------------------------------------------------

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mhng-repo-mind.dev/schemas/v1/docs.config.schema.json",
+  "title": "mhng-repo-mind project config",
+  "type": "object",
+  "required": ["spec_version", "target_repo", "output_dir"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema":      { "type": "string" },
+    "spec_version": { "type": "string", "const": "1" },
+    "target_repo":  { "type": "string", "description": "Path of the repo to analyze, relative to this config file" },
+    "output_dir":   { "type": "string", "description": "Where analyses, summaries, manifest, and INDEX live" },
+    "include":      { "type": "array", "items": { "type": "string" }, "description": "Glob patterns to include" },
+    "exclude":      { "type": "array", "items": { "type": "string" }, "description": "Glob patterns to exclude" },
+    "groups": {
+      "type": "array",
+      "description": "Logical grouping rules — each matched file rolls up to a _SUMMARY.md",
+      "items": {
+        "type": "object",
+        "required": ["name", "pattern", "summary"],
+        "additionalProperties": false,
+        "properties": {
+          "name":    { "type": "string" },
+          "pattern": { "type": "string", "description": "Glob with {group} placeholder" },
+          "summary": { "type": "string", "description": "Summary file path with {group} placeholder" }
+        }
+      }
+    },
+    "kinds": {
+      "type": "object",
+      "description": "Map of kind name → glob patterns. First match wins.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "force_proportional": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Kinds for which the analyzer should keep walkthroughs short (generated/dist artifacts)"
+    },
+    "analysis_template": { "type": "string" },
+    "summary_template":  { "type": "string" },
+    "index_template":    { "type": "string" },
+    "tools": {
+      "type": "object",
+      "description": "User's own deterministic tools. Run by `mhng-repo-mind lint`; their output is prepended to audit passes so the LLM does not re-report.",
+      "additionalProperties": { "type": "string" }
+    },
+    "compliance": {
+      "type": "object",
+      "description": "Compliance tagging + coverage configuration.",
+      "additionalProperties": false,
+      "properties": {
+        "frameworks": {
+          "type": "array",
+          "description": "Frameworks to include in reports. If omitted, all are included.",
+          "items": { "type": "string", "enum": ["hipaa", "soc2", "iso27001", "gdpr", "ccpa", "cmia", "ca-misc"] }
+        },
+        "jurisdictions": {
+          "type": "array",
+          "description": "Jurisdictions the codebase serves (informational — drives disclaimers).",
+          "items": { "type": "string" }
+        },
+        "required_controls": {
+          "type": "object",
+          "description": "Per-framework list of control IDs that MUST have at least one implementing file. `coverage --strict` exits non-zero if any are missing.",
+          "additionalProperties": { "type": "array", "items": { "type": "string" } }
+        },
+        "intent_rules": {
+          "type": "array",
+          "description": "Custom rules evaluated by `mhng-repo-mind coverage`. Each rule has `name`, `when` (file_matches/tags_include/kind), and `require` (tags_include or compliance_framework_includes).",
+          "items": { "type": "object" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mhng-repo-mind.dev/schemas/v1/frontmatter.schema.json",
+  "title": "Analysis File Frontmatter",
+  "description": "YAML frontmatter required at the top of every per-file analysis .md",
+  "type": "object",
+  "required": ["spec_version", "source_file", "analysis_path", "kind", "source_sha"],
+  "additionalProperties": true,
+  "properties": {
+    "spec_version":    { "type": "string", "const": "1" },
+    "source_file":     { "type": "string" },
+    "analysis_path":   { "type": "string" },
+    "group":           { "type": "string" },
+    "layer":           { "type": "string" },
+    "kind":            { "type": "string", "examples": ["module", "test", "config", "dist", "sql", "component", "type"] },
+    "exports":         { "type": "array", "items": { "type": "string" } },
+    "imports_internal":{ "type": "array", "items": { "type": "string" } },
+    "imports_external":{ "type": "array", "items": { "type": "string" } },
+    "related":         { "type": "array", "items": { "type": "string" } },
+    "rolls_up_to":     { "type": "string" },
+    "source_sha":      { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+    "source_mtime":    { "type": "string" },
+    "analyzed_at":     { "type": "string", "format": "date-time" },
+
+    "assumes": {
+      "type": "array",
+      "description": "Invariants this file requires of its upstream dependencies.",
+      "items": {
+        "type": "object",
+        "required": ["from", "invariant"],
+        "additionalProperties": false,
+        "properties": {
+          "from":        { "type": "string", "description": "Upstream symbol, module, or environment condition" },
+          "invariant":   { "type": "string", "description": "Concrete condition required" },
+          "enforced_by": { "type": "string", "description": "Upstream symbol that enforces it, or 'not visible'" }
+        }
+      }
+    },
+    "enforces": {
+      "type": "array",
+      "description": "Invariants this file guarantees to its downstream consumers.",
+      "items": {
+        "type": "object",
+        "required": ["for", "invariant"],
+        "additionalProperties": false,
+        "properties": {
+          "for":       { "type": "string", "description": "Exported symbol or return value" },
+          "invariant": { "type": "string", "description": "Concrete condition guaranteed" }
+        }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "description": "Known smells observed during analysis.",
+      "items": {
+        "type": "object",
+        "required": ["kind", "detail"],
+        "additionalProperties": false,
+        "properties": {
+          "kind":     { "type": "string", "examples": ["unbounded-loop", "race", "null-deref", "injection", "resource-leak", "silent-failure", "other"] },
+          "detail":   { "type": "string" },
+          "severity": { "type": "string", "enum": ["critical", "high", "medium", "low"] },
+          "location": { "type": "string" }
+        }
+      }
+    },
+    "top_suspicion": {
+      "type": "string",
+      "description": "One sentence identifying the single most suspicious thing in this file, or 'none — looks correct under visible constraints'."
+    },
+
+    "intents": {
+      "type": "array",
+      "description": "Structured classification of WHY this file (or a block in it) exists. IDs must come from schemas/intents.v1.yaml. Compliance intents require an `evidence` string and at least one `controls` entry.",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "additionalProperties": false,
+        "properties": {
+          "id":         { "type": "string", "description": "Tag ID from the taxonomy (e.g. 'security-auth', 'compliance-gdpr', 'compliance-ccpa')" },
+          "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+          "scope":      { "type": "string", "enum": ["file", "section", "block"] },
+          "locations":  { "type": "array", "items": { "type": "string" }, "description": "Line ranges like 'L42-L58' or symbol names for block-scoped tags" },
+          "evidence":   { "type": "string", "description": "One-sentence justification quoting the code or citing a contract. REQUIRED for compliance tags." },
+          "controls":   { "type": "array", "items": { "type": "string" }, "description": "Specific control IDs within the framework (e.g. '164.312(a)(1)', 'art-17', 'CC6.1'). REQUIRED for compliance tags." }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "id": { "pattern": "^compliance-" } } },
+            "then": { "required": ["id", "evidence", "controls"] }
+          }
+        ]
+      }
+    }
+  }
+}

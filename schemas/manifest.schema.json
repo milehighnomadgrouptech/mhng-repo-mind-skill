@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mhng-repo-mind.dev/schemas/v1/manifest.schema.json",
+  "title": "mhng-repo-mind manifest",
+  "description": "dbt-style dependency graph of source files, analyses, and summaries, with structured contract fields for bug-hunting passes.",
+  "type": "object",
+  "required": ["spec_version", "generated_at", "root_repo", "root_analyses", "nodes", "summaries"],
+  "additionalProperties": false,
+  "properties": {
+    "spec_version": { "type": "string", "const": "1" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "root_repo":    { "type": "string" },
+    "root_analyses":{ "type": "string" },
+    "node_count":   { "type": "integer", "minimum": 0 },
+    "summary_count":{ "type": "integer", "minimum": 0 },
+    "nodes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["analysis", "kind", "source_sha"],
+        "additionalProperties": false,
+        "properties": {
+          "analysis":       { "type": "string" },
+          "group":          { "type": "string" },
+          "kind":           { "type": "string" },
+          "source_sha":     { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+          "source_mtime":   { "type": ["string", "integer"] },
+          "analysis_sha":   { "type": ["string", "null"], "pattern": "^[0-9a-f]{16}$" },
+          "exports":        { "type": "array", "items": { "type": "string" } },
+          "depends_on":     { "type": "array", "items": { "type": "string" } },
+          "depends_on_raw": { "type": "array", "items": { "type": "string" } },
+          "depended_on_by": { "type": "array", "items": { "type": "string" } },
+          "rolls_up_to":    { "type": "string" },
+          "assumes":        { "type": "array" },
+          "enforces":       { "type": "array" },
+          "risks":          { "type": "array" },
+          "top_suspicion":  { "type": "string" },
+          "intents":        { "type": "array" }
+        }
+      }
+    },
+    "summaries": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["group", "covers", "summary_sha"],
+        "additionalProperties": false,
+        "properties": {
+          "group":       { "type": "string" },
+          "covers":      { "type": "array", "items": { "type": "string" } },
+          "summary_sha": { "type": ["string", "null"], "pattern": "^[0-9a-f]{16}$" }
+        }
+      }
+    }
+  }
+}
