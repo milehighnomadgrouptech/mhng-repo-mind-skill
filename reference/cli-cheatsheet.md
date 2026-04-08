@@ -33,6 +33,23 @@ a one-paragraph review of what's in <output_dir>/OVERVIEW.md.
 - `REPO_MIND_LOG_LEVEL=info` so you can see which step is running
 - Run `mhng-repo-mind init --estimate` first to see token/cost scope before committing to a full run
 
+## Benchmark (same question, raw vs mhng-repo-mind)
+| Command | Purpose |
+|---|---|
+| `mhng-repo-mind bench "<question>"` | Side-by-side: raw source vs mhng-repo-mind output for the same question |
+| `mhng-repo-mind bench "<q>" --runner sdk` | Force the Anthropic SDK runner (exact token counts, requires `ANTHROPIC_API_KEY`) |
+| `mhng-repo-mind bench "<q>" --runner claude-code` | Force the `claude -p` runner (estimated token counts) |
+| `mhng-repo-mind bench "<q>" --model claude-opus-4-6` | Override model |
+| `mhng-repo-mind bench "<q>" --max-context-chars 600000` | Cap each context (≈150k tokens) |
+| `mhng-repo-mind bench "<q>" --only raw` | Run only the raw-repo side |
+| `mhng-repo-mind bench "<q>" --only analyses` | Run only the mhng-repo-mind side |
+| `mhng-repo-mind bench "<q>" --no-write` | stdout summary only, skip the bench/<slug>.md file |
+| `mhng-repo-mind bench "<q>" --json` | Machine-readable output |
+
+Produces stdout summary table + `<output_dir>/bench/<slug>.md` with both answers, token counts, cost, wall time, and truncation flags. Use the SDK runner (the default when `ANTHROPIC_API_KEY` is set) for any numbers you intend to publish — the `claude-code` fallback estimates tokens by character count.
+
+Pricing defaults to Opus (`$15/1M in`, `$75/1M out`). Override with `REPO_MIND_PRICE_INPUT` / `REPO_MIND_PRICE_OUTPUT` if you're benching a different model.
+
 ## Bootstrap & sync (LLM)
 | Command | Purpose |
 |---|---|

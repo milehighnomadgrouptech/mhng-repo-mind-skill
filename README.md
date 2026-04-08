@@ -17,6 +17,8 @@ This bundle is the **Claude-native distribution** of the project. It's self-cont
 > **3. Compliance reports are not legal advice.** The taxonomy cites HIPAA / SOC 2 / ISO 27001 / GDPR / CCPA / CMIA / California controls, but every report is a *starting checklist for a human reviewer*, not an audit deliverable.
 >
 > **4. Most of the ~40-command CLI is still experimental.** See the battle-tested table in the [main repo README](https://github.com/milehighnomadgrouptech/mhng-repo-mind#whats-battle-tested).
+>
+> **5. Before trusting output from any run, walk through [INTERNAL_TEST.md](https://github.com/milehighnomadgrouptech/mhng-repo-mind/blob/main/INTERNAL_TEST.md) in the main repo.** It's the short four-phase checklist for proving the tool works end-to-end on your codebase, and doubles as the onboarding path for new contributors.
 
 ---
 
