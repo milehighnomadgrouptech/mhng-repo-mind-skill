@@ -1,6 +1,17 @@
 # mhng-repo-mind Claude Skill
 
-> The Claude Code skill bundle for [**mhng-repo-mind**](https://github.com/milehighnomadgrouptech/mhng-repo-mind) — drop this folder into `~/.claude/skills/` and use mhng-repo-mind methodology directly inside any Claude Code session, with or without the CLI installed.
+> The Claude Code plugin for [**mhng-repo-mind**](https://github.com/milehighnomadgrouptech/mhng-repo-mind) — install via the Claude Code plugin marketplace and use mhng-repo-mind methodology directly inside any Claude Code session, with or without the CLI installed.
+
+## Install
+
+```
+/plugin marketplace add milehighnomadgrouptech/mhng-repo-mind-skill
+/plugin install mhng-repo-mind@mhng-marketplace
+```
+
+Then start a fresh Claude Code session. The skill and its slash commands become available automatically.
+
+> For the legacy drop-in-folder install (copy this repo into `~/.claude/skills/`), see [INSTALL.md](INSTALL.md).
 
 mhng-repo-mind turns any codebase into structured AI-generated documentation: forensic per-file analyses, a dbt-style dependency graph, cross-file bug audits, and audit-ready compliance reports with cited control IDs across HIPAA, SOC 2, ISO 27001, GDPR, CCPA, CMIA, and California statutes. Incremental and provenance-tracked.
 
