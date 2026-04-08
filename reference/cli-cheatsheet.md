@@ -7,16 +7,35 @@
 | `mhng-repo-mind version` | Print CLI version |
 | `mhng-repo-mind help` | Print help |
 
-## One-shot (LLM, unattended)
+## One-shot (LLM, unattended or semi-attended)
 | Command | Purpose |
 |---|---|
-| `mhng-repo-mind auto` | Run the full pipeline against `./docs.config.json` end-to-end |
-| `mhng-repo-mind auto ../some-repo` | Bootstrap config in target if missing, then run the pipeline |
+| `mhng-repo-mind auto` | Estimate cost, prompt, then run the full pipeline against `./docs.config.json` |
+| `mhng-repo-mind auto ../some-repo` | Bootstrap config in target if missing, estimate, prompt, run |
+| `mhng-repo-mind auto --yes` | Skip the cost-confirmation prompt (still shows the estimate) |
+| `mhng-repo-mind auto --skip-estimate` | Skip the estimate + prompt entirely (power-user path) |
 | `mhng-repo-mind auto --skip-audit` | Skip the slow LLM audit pass |
 | `mhng-repo-mind auto --skip-process` | Skip process discover + generate |
 | `mhng-repo-mind auto --output ./mydocs` | Override output_dir on bootstrap |
 
-**Pipeline order:** `doctor → init → manifest → validate → symbols → glossary → entry-points → dead-code → graph → intents → compliance → coverage → sources → overview → contracts → audit → process --discover → process`. `doctor`, `init`, `manifest` are critical; everything after is best-effort.
+**Default flow:** `auto` now runs `init --estimate` first to show the cost, then prompts `Continue with the full pipeline against this estimate? [y/N]` (defaults to NO). Pass `--yes` to silence the prompt. When stdin isn't a TTY (CI, background scripts) it proceeds with a warning instead of prompting.
+
+**Pipeline order:** `doctor → init --estimate → (prompt) → init → manifest → validate → symbols → glossary → entry-points → dead-code → graph → intents → compliance → coverage → sources → overview → contracts → audit → process --discover → process`. `doctor`, `init`, `manifest` are critical; everything after is best-effort.
+
+**Zero-friction install (from the main repo):**
+```bash
+# macOS / Linux
+git clone https://github.com/milehighnomadgrouptech/mhng-repo-mind.git
+cd mhng-repo-mind
+./quickstart.sh ../my-target-repo         # runs auto end-to-end with preflight checks
+```
+```powershell
+# Windows PowerShell
+git clone https://github.com/milehighnomadgrouptech/mhng-repo-mind.git
+cd mhng-repo-mind
+.\quickstart.ps1 ..\my-target-repo
+```
+The quickstart script verifies `node`, `claude`, and `ANTHROPIC_API_KEY`, runs `npm install` on first use, then calls `mhng-repo-mind auto`. No `npm link`, no manual config file.
 
 **Recommended Claude Code prompt** (paste into a Claude Code session in the target repo):
 
