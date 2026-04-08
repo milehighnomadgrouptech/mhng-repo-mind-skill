@@ -50,6 +50,13 @@
     "lint": "eslint .",
     "test": "vitest run"
   },
+  "branches": {
+    "_doc": "Spec v1.8 branch parity. Default mode 'single' preserves prior single-branch behavior. Set mode to 'parity' to keep one docs branch per target branch; in parity mode target_repo is derived as <target_worktree_root>/<docs-branch-name> and the runner enforces docs-branch-name === target-branch-name on every command.",
+    "mode": "single",
+    "target_worktree_root": "../worktrees",
+    "pin_model": "claude-opus-4-6",
+    "require_clean_target": true
+  },
   "compliance": {
     "frameworks": ["hipaa", "soc2", "iso27001", "gdpr", "ccpa", "cmia", "ca-misc"],
     "jurisdictions": ["EU", "US-CA", "US-federal"],

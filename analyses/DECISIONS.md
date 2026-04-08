@@ -27,18 +27,63 @@ Architecture Decision Records. Every non-obvious choice, with the rationale so a
 
 ---
 
-## ADR-003: LLM delegation via `claude -p "/slash-command"`
+## ADR-003: LLM delegation via inline-prompt + stdin (was: slash command)
 
-**Decision:** LLM-powered CLI commands shell out to Claude Code with a slash-command argument. The slash command lives in `.claude/commands/docs-*.md` and contains the orchestration logic. The CLI is a thin shim.
+**Decision (current — 2026-04-08):** LLM-powered CLI commands read `.claude/commands/docs-*.md` from disk as **prompt source**, render `{{VARS}}` in Node, and pipe the inlined body to `claude -p` over **stdin**. The CLI is still a thin shim, but it no longer invokes a slash command.
+
+**Why the change:**
+1. **Claude Code 2.1.92 does not execute slash commands when invoked via `-p`.** `claude -p "/docs-init"` was a no-op: the model received the literal text "/docs-init" and either echoed `Unknown command` or wandered off. There is no way to make `-p` resolve a project-local slash command.
+2. **Windows argv mangles CRLF inside long prompt bodies.** Even when slash invocation worked elsewhere, multi-kilobyte prompts passed as a single argv string lost line endings on Windows. Stdin sidesteps both problems entirely.
+3. **It removes the "did the user copy the .md files into `~/.claude/commands/`?" failure mode.** The runner reads the project-local files directly. There is no install step.
+
+**The .md files in `.claude/commands/` are still authoritative** — they remain the prompt source the runner reads. They are no longer "Claude Code slash commands" at runtime; they are prompt templates with `{{VARS}}` placeholders.
+
+**Invariants preserved from the original ADR:**
+- The deterministic-vs-LLM split is unchanged (ADR-004).
+- The CLI is still a thin shim around prompts (ADR-014).
+- `manifest.json` remains the single source of truth (ADR-015).
+- `REPO_MIND_LLM_CMD` is still the swap point for non-Claude runners; an alternate runner just needs to accept a prompt body on stdin.
+
+**New invariant added by this ADR:** every LLM-delegating command verifies its artifacts after the runner returns. Zero artifacts written, or `Unknown skill` / `Unknown command` leakage in stdout, fails the command loudly. `doctor` round-trips a sentinel through the real runner (`--skip-llm-probe` for offline use).
+
+**Do not reintroduce `claude -p "/docs-..."` invocation without re-testing on Windows + Claude Code ≥ 2.1.92.**
+
+**Original decision (historical — superseded above):** shell out to `claude -p "/docs-init"`. Failed in production for the reasons above.
+
+---
+
+## ADR-017: Branch-parity mode for multi-branch documentation (2026-04-08)
+
+**Decision:** `docs.config.json` gains an optional `branches` block:
+
+```json
+"branches": {
+  "mode": "single",
+  "target_worktree_root": "../worktrees",
+  "pin_model": "claude-opus-4-6",
+  "require_clean_target": true
+}
+```
+
+`mode: "single"` (default) preserves all existing behavior. `mode: "parity"` derives `target_repo` as `<target_worktree_root>/<docs-branch-name>` and enforces docs-branch-name === target-branch-name on every command.
+
+New commands: `branch-status`, `branch-sync [--create]`, `ask "<q>" [--branch <name>]`, `resolve-merge <file>`, `watch --branch-mode`. New global `--ref <sha>` flag on every command — if target HEAD doesn't match `manifest.metadata.git_ref` and `--ref` doesn't reconcile them, the command refuses to run.
 
 **Why:**
-1. Orchestration logic (fan-out, retries, parallel batches, subagent spawning) is complex and already solved by Claude Code.
-2. The slash commands are also usable directly inside Claude Code, so `mhng-repo-mind` has two user experiences for free.
-3. If the user wants to swap LLM runners, they set `REPO_MIND_LLM_CMD`. The prompts in `prompts/` are portable.
+1. Real teams have multiple long-lived branches with diverging contracts. Forcing a single docs branch loses the ability to ask "what does AUDIT.md look like for the release branch?"
+2. Driving target_repo from a worktree root keeps the docs store as the source of truth. The user creates one worktree per branch with `git worktree add`; the runner manages the docs side.
+3. The default stays `single` so no existing user is forced to migrate.
 
-**Alternatives considered:**
-- Call the Anthropic SDK directly from Node (would lose Claude Code's orchestration and re-invent subagent management)
-- Use Python (adds a runtime dependency; Node matches the target audience better)
+**Invariants preserved:**
+- No new state directory. `manifest.metadata.git_ref` (already part of spec v1.5) is the anchor.
+- Manifest-is-authoritative (ADR-015) — the new commands all read/write the existing manifest fields.
+- Deterministic-vs-LLM split (ADR-004) — `branch-status`, `branch-sync`, `resolve-merge` are pure Node; only `ask` may go through the runner.
+
+**`resolve-merge`** is a git merge driver registered against analysis `.md` files. It uses each side's frontmatter `source_sha` to decide which branch's analysis is current. Install lines for `.gitattributes` and `.git/config` are documented in the cheatsheet but not auto-installed — the user opts in.
+
+**`doctor`** warns when `target_repo` is inside the same git repo as the docs store and suggests a `git worktree add` layout to fix it.
+
+**SPEC.md bumped to 1.8** (additive). The JSON schema `spec_version` field still reads `"1"`.
 
 ---
 

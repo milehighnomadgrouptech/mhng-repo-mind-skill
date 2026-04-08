@@ -10,6 +10,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 _Nothing yet._
 
+## [1.8.0] - 2026-04-08 — runner overhaul + branch parity
+
+This release lands two rounds of changes that change how the tool talks to Claude Code and how it handles multi-branch documentation.
+
+### Changed — LLM invocation model (no more slash commands at runtime)
+- **The runner no longer shells out to `claude -p "/docs-init"` (or any other slash command).** In Claude Code 2.1.92, slash commands aren't executed when passed via `-p`, and on Windows the argv path mangles CRLF inside long prompt bodies. Both made the previous design unreliable.
+- **`src/llm.mjs` now reads the `.claude/commands/docs-*.md` prompt file directly, renders `{{VARS}}` in Node, and pipes the inlined prompt body to `claude -p` over stdin.** The .md files in `.claude/commands/` stay authoritative as prompt source — they are no longer "Claude Code slash commands" at runtime, they're prompt templates the runner reads. Users do **not** need to copy them into `~/.claude/commands/` anymore.
+- **Every LLM-delegating command now verifies its artifacts after the run finishes.** If the model returns "Unknown skill" / "Unknown command" leakage, or if zero artifacts were written, the command fails loudly instead of pretending to succeed.
+- **`auto`** gates each pipeline step on a per-step metric. `validate` is critical and aborts the pipeline on failure. A failed `init` aborts the rest.
+- **`doctor`** now round-trips a sentinel through the real runner end-to-end so a green doctor means a green pipeline. `--skip-llm-probe` is the escape hatch for offline preflight.
+- **Groups trap**: a diagnostic + catch-all default group is always present so an unfamiliar tree never silently produces zero analyses.
+- **ajv `date` / `date-time` formats** are registered as no-ops (warning noise eliminated; validation still passes).
+
+### Added — branch parity mode
+- **`mhng-repo-mind branch-status`** — show which branch the docs store is currently aligned with and whether the target repo's HEAD matches `manifest.metadata.git_ref`.
+- **`mhng-repo-mind branch-sync [--create]`** — switch the docs store to a sibling branch matching the target's current branch. With `--create`, bootstraps a new docs branch if one doesn't exist.
+- **`mhng-repo-mind ask "<q>" [--branch <name>]`** — retrieval against the manifest, optionally pinned to a specific docs branch.
+- **`mhng-repo-mind resolve-merge <file>`** — git merge driver for analysis `.md` files. Uses the frontmatter `source_sha` to pick the correct side. Install lines for `.gitattributes` and `.git/config` are documented but not auto-installed.
+- **`mhng-repo-mind watch --branch-mode`** — watcher follows branch switches in the target repo and re-syncs the corresponding docs branch.
+- **Global `--ref <sha>` flag on every command.** If the target repo's HEAD doesn't match `manifest.metadata.git_ref` (and `--ref` doesn't reconcile them), the command refuses to run.
+- **`branches:` config block** in `docs.config.json`:
+  ```jsonc
+  "branches": {
+    "mode": "single",                       // or "parity"
+    "target_worktree_root": "../worktrees", // parity mode only
+    "pin_model": "claude-opus-4-6",
+    "require_clean_target": true
+  }
+  ```
+  `mode: "single"` (default) preserves existing single-branch behavior. `mode: "parity"` derives `target_repo` as `<target_worktree_root>/<docs-branch-name>` and enforces docs-branch-name === target-branch-name on every command.
+- **`doctor`** warns when `target_repo` is inside the same git repo as the docs store and suggests a `git worktree add` layout.
+- **`SPEC.md` bumped to 1.8** (additive only). The JSON schema `spec_version` field still reads `"1"`.
+
+### Migration notes
+- If you previously copied `mhng-repo-mind`'s `.claude/commands/*.md` files into `~/.claude/commands/` as a workaround, you can delete those copies. They're no longer used at runtime.
+- Existing `docs.config.json` files keep working unchanged — the new `branches` block is optional and defaults to `mode: "single"`.
+
 ## [1.7.0] - 2026-04-08 — first public release
 
 This release bundles **every feature built across internal spec milestones v1.0 → v1.7** into a single public artifact. Features are grouped by the spec milestone that introduced them.

@@ -31,7 +31,7 @@ If the user asks you to "update the skill" or "sync the skill to the main repo",
 These don't exist in the skill bundle. Don't create them, don't reference them.
 
 - `src/` — orchestration code lives in the main repo
-- `.claude/commands/` — slash commands live in the main repo
+- `.claude/commands/` — these `.md` files live in the main repo and are read by the runner as **prompt source** (piped to `claude -p` over stdin). They are not slash commands at runtime as of spec v1.8. Do not mirror them into the skill bundle, and do not tell users to copy them into `~/.claude/commands/`.
 - `bin/` — CLI shim lives in the main repo
 - `package.json`, `node_modules/`, `package-lock.json`
 - `docs/` (other than the cheatsheet target above)

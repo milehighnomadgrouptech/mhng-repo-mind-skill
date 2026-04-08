@@ -8,9 +8,9 @@ mhng-repo-mind is organized around **three planes** that never cross:
 
 1. **Deterministic plane** (`src/`, `schemas/`) — Node code, JSON Schemas, hash functions, graph builders. Never calls an LLM. Must be fast, reproducible, and correct.
 2. **Prompt plane** (`prompts/`) — plain markdown files. Every prompt is a complete, self-contained instruction to an LLM subagent. No code. No templating beyond simple placeholders.
-3. **Orchestration plane** (`.claude/commands/`, `.claude/agents/`) — slash commands and agent definitions that tell Claude Code *how* to use the prompts: how to fan out, how to aggregate, how to pass arguments.
+3. **Orchestration plane** (`.claude/commands/*.md`) — markdown prompt-template files. As of spec v1.8 these are **not** runtime slash commands; they are prompt source that the Node runner reads, renders `{{VARS}}` into, and pipes to `claude -p` over stdin. They retain their `.claude/commands/` location so Claude Code users can still browse them, but the runner does not invoke them as `/docs-init`.
 
-The CLI (`bin/mhng-repo-mind` + `src/cli.mjs`) is the user's entry point to all three, but it mostly lives in the deterministic plane and shells out to Claude Code for the LLM parts.
+The CLI (`bin/mhng-repo-mind` + `src/cli.mjs`) is the user's entry point to all three. It lives in the deterministic plane and, for LLM passes, inlines a prompt body and pipes it to `claude -p` via stdin.
 
 ## Top-level layout
 
@@ -28,7 +28,7 @@ mhng-repo-mind/
 │   ├── stale.mjs                 # diff sources vs manifest; downstream closure
 │   ├── scope.mjs                 # --groups/--kinds/--limit/--since filters + cost estimator
 │   ├── taxonomy.mjs              # load intents.v1.yaml; group manifest by intent/control
-│   ├── llm.mjs                   # shell out to `claude -p` (override via REPO_MIND_LLM_CMD)
+│   ├── llm.mjs                   # reads .claude/commands/docs-*.md as prompt source, renders {{VARS}} in Node, pipes inlined body to `claude -p` over stdin (override via REPO_MIND_LLM_CMD)
 │   └── commands/
 │       ├── init / sync / add      # LLM — base pipeline
 │       ├── query                  # deterministic retrieval + --intent/--control
@@ -101,21 +101,22 @@ mhng-repo-mind/
 2. `config.mjs` loads `docs.config.json` and validates it against `schemas/docs.config.schema.json`.
 3. `walk.mjs` globs the target repo, resolving each file's `kind` and `group`.
 4. `scope.mjs` applies `--groups`/`--kinds`/`--limit`/`--since`/`--estimate` filters.
-5. If LLM work is needed, CLI writes a `.mhng-repo-mind-init-scope.json` plan file and invokes `claude -p "/docs-init --scope <path>"`.
-6. `/docs-init` in `.claude/commands/docs-init.md` reads the plan, spawns one file-analyzer subagent per file using `prompts/file-analysis.md`, writes per-file `.md` files.
-7. `/docs-init` then runs `prompts/group-summary.md` per group and `prompts/index-builder.md` once for the whole repo.
+5. If LLM work is needed, CLI writes a `.mhng-repo-mind-init-scope.json` plan file. The runner reads `.claude/commands/docs-init.md`, renders `{{VARS}}` (including the plan path), and pipes the inlined prompt body to `claude -p` over stdin. **No slash command is invoked**: Claude Code 2.1.92 does not execute slash commands when called via `-p`, and the Windows argv path mangles CRLF inside long bodies. Stdin sidesteps both.
+6. The init prompt body instructs the model to read the plan and write one per-file `.md` per source file using `prompts/file-analysis.md` rules.
+7. The init prompt body then runs `prompts/group-summary.md` per group and `prompts/index-builder.md` once for the whole repo.
+   After the runner returns, the CLI verifies artifacts were actually written: zero artifacts or any "Unknown skill / Unknown command" leakage in stdout fails the command loudly.
 8. Back in the CLI, `manifest.mjs` walks the resulting analyses, computes SHAs, parses frontmatter (including `intents`), resolves `depends_on` edges, inverts to `depended_on_by`, and writes `manifest.json`.
 
 ### Incremental: `sync`
 1. `stale.mjs` computes added/modified/deleted sets by diffing current source SHAs against `manifest.json`.
 2. It walks `depended_on_by` to find downstream files that may need refreshing.
-3. CLI delegates to `/docs-sync`, which amends only the affected analyses (preserving unchanged sections) and rewrites affected summaries.
+3. The runner reads `.claude/commands/docs-sync.md`, inlines vars, and pipes the body to `claude -p` over stdin. The model amends only the affected analyses (preserving unchanged sections) and rewrites affected summaries.
 4. `manifest.mjs` rebuilds deterministically — this catches any drift between what the LLM wrote and what the graph should look like.
 
 ### Bug hunting: `audit`, `contracts`, `drift`
-- `audit`: reads manifest, groups nodes by `rolls_up_to`, delegates to `/docs-audit` which runs `prompts/audit-group.md` once per group. The prompt reads analyses only — never source. Output: `<group>/_AUDIT.md` + aggregated `AUDIT.md`.
-- `contracts`: builds `(upstream.enforces, downstream.assumes)` pairs from the manifest with a token-overlap heuristic, writes a plan file, delegates to `/docs-contracts` which runs `prompts/contracts-check.md` (3-line output oracle) on each pair. Output: `CONTRACTS.md` with satisfied/not_satisfied/unknown buckets.
-- `drift`: takes a git ref, uses `git diff` to find changed files, walks `depended_on_by` to find downstream, delegates to `/docs-drift` which runs `prompts/drift-check.md` (safe/possibly_broken/broken verdicts). Output: `DRIFT.md`. Designed for CI on every PR.
+- `audit`: reads manifest, groups nodes by `rolls_up_to`, inlines `.claude/commands/docs-audit.md` per group and pipes it to `claude -p` over stdin. The prompt reads analyses only — never source. Output: `<group>/_AUDIT.md` + aggregated `AUDIT.md`.
+- `contracts`: builds `(upstream.enforces, downstream.assumes)` pairs from the manifest with a token-overlap heuristic, writes a plan file, inlines `.claude/commands/docs-contracts.md` and pipes it to `claude -p` over stdin (3-line oracle per pair). Output: `CONTRACTS.md` with satisfied/not_satisfied/unknown buckets.
+- `drift`: takes a git ref, uses `git diff` to find changed files, walks `depended_on_by` to find downstream, inlines `.claude/commands/docs-drift.md` and pipes it to `claude -p` over stdin (safe/possibly_broken/broken verdicts). Output: `DRIFT.md`. Designed for CI on every PR.
 
 ### Intents & compliance
 - `intents`: reads `manifest.nodes[*].intents`, groups by tag ID, writes `INTENTS.md`. Pure Node.
@@ -161,7 +162,27 @@ Every other command is deterministic Node. This is enforced by convention, not c
 - `manifest.json` is the primary state.
 - `AUDIT.triage.md` is human-curated state that survives audits.
 - `docs.config.json` is user state (hand-edited, never written by mhng-repo-mind).
-- `.mhng-repo-mind-*-plan.json` files are transient LLM handoff files, deleted after the slash command completes.
+- `.mhng-repo-mind-*-plan.json` files are transient LLM handoff files, deleted after the LLM pass completes.
+
+## Invocation invariants (spec v1.8)
+
+- The runner reads `.claude/commands/docs-*.md` as **prompt source** and pipes the rendered body to `claude -p` over stdin. It does not call `claude -p "/docs-init"`. Reintroducing slash invocation will break Windows (CRLF mangling in argv) and silently no-op on Claude Code 2.1.92 (slash commands aren't executed via `-p`).
+- Every LLM-delegating command verifies its artifacts post-run and fails loudly on `Unknown skill` / `Unknown command` leakage or zero artifacts.
+- `doctor` round-trips a sentinel through the real runner to prove the pipeline works end-to-end. `--skip-llm-probe` is the offline escape hatch.
+- `auto` gates each pipeline step on a per-step metric. `validate` is critical; init failure aborts the pipeline.
+- A diagnostic + catch-all default group is always present so an unfamiliar tree never silently produces zero analyses.
+
+## Branch-parity model (spec v1.8)
+
+`docs.config.json.branches` selects how the docs store maps to target branches:
+- `mode: "single"` (default) — one docs branch covers the target. Existing behavior, unchanged.
+- `mode: "parity"` — the runner derives `target_repo` as `<target_worktree_root>/<docs-branch-name>` and enforces docs-branch-name === target-branch-name on every command. The new `branch-status`, `branch-sync`, `ask --branch`, and `watch --branch-mode` commands operate against this layout.
+
+Every command takes a global `--ref <sha>` flag. If target HEAD doesn't match `manifest.metadata.git_ref` and `--ref` doesn't reconcile them, the command refuses to run.
+
+`resolve-merge` is a git merge driver for analysis `.md` files; it reads the frontmatter `source_sha` from each side. Install lines for `.gitattributes` and `.git/config` are documented but not auto-installed.
+
+`doctor` warns when `target_repo` lives inside the same git repo as the docs store and suggests a `git worktree add` layout to fix it.
 
 ## Self-hosted documentation
 
